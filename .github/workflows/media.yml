@@ -1,0 +1,50 @@
+name: MediaProjection Bot bauen
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Repository laden
+        uses: actions/checkout@v4
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Neues Projekt entpacken
+        run: |
+          rm -rf extracted
+          mkdir extracted
+          unzip -q LandRent_Bot_MEDIA_PROJECTION.zip -d extracted
+          PROJECT_DIR=$(find extracted -name settings.gradle.kts -print -quit | xargs dirname)
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          echo "Projekt: $PROJECT_DIR"
+
+      - name: Gradle einrichten
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10"
+
+      - name: APK bauen
+        run: |
+          cd "$PROJECT_DIR"
+          echo "kotlin.jvm.target.validation.mode=warning" >> gradle.properties
+          gradle --no-daemon :app:assembleDebug
+
+      - name: APK prüfen
+        run: |
+          test -f "$PROJECT_DIR/app/build/outputs/apk/debug/app-debug.apk"
+          ls -lh "$PROJECT_DIR/app/build/outputs/apk/debug/app-debug.apk"
+
+      - name: APK hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: LandRent-MediaProjection-APK
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
